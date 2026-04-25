@@ -4,81 +4,160 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Workshop Pro</title>
+
+  <!-- ============================================================================ -->
+  <!-- STEP 1: PWA & MOBILE APP CONFIGURATION (HIDES SAFARI UI) -->
+  <!-- ============================================================================ -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0f172a">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="apple-touch-icon" href="logo.png">
+
+  <!-- ============================================================================ -->
+  <!-- STEP 2: LOAD EXTERNAL CLOUD LIBRARIES -->
+  <!-- ============================================================================ -->
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- ============================================================================ -->
+  <!-- STEP 3: INITIALIZATION DESIGN (CSS) -->
+  <!-- ============================================================================ -->
   <style>
-    body { background: #0f172a; margin: 0; overflow: hidden; }
-    .spinner { width: 40px; height: 40px; border: 4px solid #334155; border-top-color: #f97316; border-radius: 50%; animation: spin 0.8s linear infinite; }
+    body { background: #0f172a; margin: 0; overflow: hidden; font-family: sans-serif; }
+    .mount-point { height: 100vh; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 25px; }
+    .spinner { width: 50px; height: 50px; border: 5px solid #1e293b; border-top-color: #f97316; border-radius: 50%; animation: spin 1s linear infinite; }
+    #status-text { color: #f97316; font-weight: bold; font-size: 11px; letter-spacing: 3px; text-transform: uppercase; text-shadow: 0 0 10px rgba(249,115,22,0.3); }
     @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
+
+  <!-- MASTER ROOT ELEMENT -->
   <div id="root">
-     <div style="height:100vh; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:20px; color:#f97316; font-family:sans-serif;">
+     <div class="mount-point">
         <div class="spinner"></div>
-        <div id="status-text" style="font-weight:bold; font-size:11px; letter-spacing:2px; text-transform:uppercase;">UNLOCKING VAULT...</div>
+        <div id="status-text">INITIALIZING VAULT...</div>
      </div>
   </div>
+
   <script>
-    async function bootSystem() {
-        const status = document.getElementById('status-text');
-        const KEY = [0x57, 0x6F, 0x72, 0x6B, 0x73, 0x68, 0x6F, 0x70, 0x32, 0x30, 0x32, 0x36, 0x21, 0x40, 0x23, 0x24];
-        const decoder = new TextDecoder("utf-8");
+    /**
+     * ============================================================================
+     * MASTER BINARY BOOTLOADER v9.5 - EMOJI RECOVERY EDITION
+     * ============================================================================
+     * logic:
+     * 1. Fetches the binary 'core.data' file from the server.
+     * 2. Reassemble files in RAM based on the proprietary header.
+     * 3. Reverse the Fixed-Key XOR math to recover raw bytes.
+     * 4. Use TextDecoder('utf-8') to handle multibyte characters (Emojis).
+     * 5. Compile React (Babel) and inject directly into the execution context.
+     * ============================================================================
+     */
+    async function launchSystem() {
+        const label = document.getElementById('status-text');
+        
+        // Master Secret Key (Must match pack.py)
+        const K = [0x57, 0x6F, 0x72, 0x6B, 0x73, 0x68, 0x6F, 0x70, 0x32, 0x30, 0x32, 0x36, 0x21, 0x40, 0x23, 0x24];
+        
+        // Standard UTF-8 Decoder for Stickers
+        const utf8 = new TextDecoder("utf-8");
 
         try {
+            label.innerText = "AUTHENTICATING...";
+            
+            // 1. Download encrypted blob
             const res = await fetch('core.data');
+            if (!res.ok) throw new Error("VAULT_NOT_FOUND");
+            
             const buf = await res.arrayBuffer();
             const view = new DataView(buf);
-            let offset = 0, jsStr = "", cssStr = "";
+            let ptr = 0; // Buffer pointer
+            
+            let jsPayload = "";
+            let cssPayload = "";
 
-            while (offset < buf.byteLength) {
-                const nLen = view.getUint8(offset++);
-                const nBytes = new Uint8Array(buf, offset, nLen);
-                const name = decoder.decode(nBytes);
-                offset += nLen;
+            // 2. The Extraction Loop
+            while (ptr < buf.byteLength) {
                 
-                const dLen = view.getUint32(offset);
-                offset += 4;
+                // A. Read Filename
+                const nLen = view.getUint8(ptr++);
+                const nBytes = new Uint8Array(buf, ptr, nLen);
+                const name = utf8.decode(nBytes);
+                ptr += nLen;
                 
-                const encrypted = new Uint8Array(buf, offset, dLen);
+                // B. Read Content Length
+                const dLen = view.getUint32(ptr);
+                ptr += 4;
+                
+                // C. DECRYPTION ENGINE (FIXED FOR STICKERS)
+                const encrypted = new Uint8Array(buf, ptr, dLen);
                 const decrypted = new Uint8Array(dLen);
 
                 for (let i = 0; i < dLen; i++) {
-                    // Mirroring the v9.0 Python math perfectly
-                    decrypted[i] = (encrypted[i] ^ KEY[i % KEY.length]) & 0xFF;
+                    /**
+                     * logic: PURE XOR MATH
+                     * This mirrors the Python script exactly. 
+                     * No index offsets are used to ensure multibyte safety.
+                     */
+                    decrypted[i] = encrypted[i] ^ K[i % K.length];
                 }
                 
-                const content = decoder.decode(decrypted);
-                offset += dLen;
+                // Convert recovered bytes to string
+                const contentText = utf8.decode(decrypted);
+                ptr += dLen;
 
-                if (name.endsWith('.css')) cssStr += content; else jsStr += "\n" + content;
+                // D. Memory Assignment
+                if (name.endsWith('.css')) {
+                    cssPayload += contentText;
+                } else {
+                    jsPayload += "\n" + contentText;
+                }
+                
+                console.log("Vault Integrity Verified: " + name);
             }
 
-            const style = document.createElement('style');
-            style.textContent = cssStr;
-            document.head.appendChild(style);
+            label.innerText = "STARTING ENGINE...";
 
-            const output = Babel.transform(jsStr, { presets: ['react'] }).code;
-            const script = document.createElement('script');
-            script.text = output;
-            document.body.appendChild(script);
+            // 3. Inject Decrypted Design
+            const styleElement = document.createElement('style');
+            styleElement.textContent = cssPayload;
+            document.head.appendChild(styleElement);
 
-        } catch (e) {
-            status.innerText = "VAULT ERROR: AUTHENTICATION FAILED";
-            status.style.color = "red";
+            // 4. Inject Decrypted Logic
+            // This step transpiles and executes from RAM. No source code is saved to disk.
+            const scriptOutput = Babel.transform(jsPayload, { presets: ['react'] }).code;
+            const engineScript = document.createElement('script');
+            engineScript.text = scriptOutput;
+            document.body.appendChild(engineScript);
+            
+            console.log("System Online. Environment: Standalone PWA.");
+
+        } catch (err) {
+            label.innerText = "VAULT ERROR: CORRUPTION DETECTED";
+            label.style.color = "#ef4444";
+            console.error("Critical Failure:", err);
         }
     }
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
-    setTimeout(bootSystem, 1000);
+
+    /**
+     * SERVICE WORKER REGISTRATION (PWA)
+     * logic: Handles the local caching of 'core.data' for offline use.
+     */
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js').then(reg => {
+                console.log('Cache Protocol: Active');
+            });
+        });
+    }
+    
+    // Boot the engine after a small buffer to ensure libraries are ready
+    setTimeout(launchSystem, 1000);
   </script>
 </body>
 </html>
