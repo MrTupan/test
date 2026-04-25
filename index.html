@@ -5,42 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Workshop Pro</title>
 
-  <!-- 
-    ============================================================================
-    LEMAR WORKSHOP DATABASE - MASTER BOOT INTERFACE v14.0
-    ============================================================================
-    AUTHOR: NABIZADA (System Architect)
-    PROTOCOL: BLOB-MAPPED BINARY VIRTUALIZATION
-    ============================================================================
-    
-    [ DEEP FOCUS: BLOB-INJECTION TECHNOLOGY ]
-    
-    1. THE PROBLEM:
-       Previous versions failed because the code was treated as a "String." 
-       In JavaScript, strings are UTF-16. If you put raw UTF-8 emoji bytes 
-       into a UTF-16 string, the browser "fixes" them, which breaks the sticker.
-
-    2. THE v14.0 SOLUTION:
-       We use a "Pure Binary Pipeline." 
-       - The core.data is decrypted into a Uint8Array (Raw Bits).
-       - We then wrap those bits into a 'new Blob()'.
-       - We create a 'URL.createObjectURL(blob)'.
-       - This tells the browser: "Here is a real file in RAM."
-       - By loading the script as an external Blob URL, the browser's 
-         Internal Parser handles the stickers perfectly as native UTF-8.
-
-    3. RANDOMIZED DECRYPTION:
-       The first byte of core.data is now a "Salt." This ensures that the 
-       encrypted file is different every time it is built.
-    ============================================================================
-  -->
-
+  <!-- PWA SETTINGS -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0f172a">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="apple-touch-icon" href="logo.png">
 
+  <!-- CORE LIBRARIES (External) -->
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
@@ -48,166 +20,105 @@
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
+  <!-- INTERNAL CSS (For Loader only) -->
   <style>
-    body { background: #0f172a; margin: 0; padding: 0; overflow: hidden; font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; }
-    .boot-shell { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 30px; }
-    .spinner { width: 50px; height: 50px; border: 4px solid rgba(255, 255, 255, 0.03); border-top: 4px solid #f97316; border-radius: 50%; animation: spin 1s linear infinite; }
-    #status-label { color: #f97316; font-weight: 900; font-size: 11px; letter-spacing: 5px; text-transform: uppercase; animation: fade 2s infinite; }
-    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-    @keyframes fade { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+    body { background: #0f172a; margin: 0; overflow: hidden; }
+    .spinner { width: 40px; height: 40px; border: 4px solid #334155; border-top-color: #f97316; border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
 
   <div id="root">
-     <div class="boot-shell">
+     <div style="height:100vh; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:20px; color:#f97316; font-family:sans-serif;">
         <div class="spinner"></div>
-        <div id="status-label">INITIALIZING VIRTUAL VAULT...</div>
+        <div id="status-text" style="font-weight:bold; font-size:12px; letter-spacing:2px; text-transform:uppercase;">INITIALIZING SYSTEM...</div>
      </div>
   </div>
 
   <script>
     /**
-     * startSystem
-     * logic: Decrypts assets and maps them to virtual memory URLs.
+     * ============================================================================
+     * MASTER BINARY BOOTLOADER v8.5 - UTF-8 RECONSTRUCTION EDITION
+     * ============================================================================
+     * This version fixes the "Broken Stickers" issue by decrypting raw bytes
+     * and using TextDecoder to handle multi-byte Emoji characters correctly.
+     * ============================================================================
      */
-    async function startSystem() {
-        const label = document.getElementById('status-label');
-        
-        // MASTER KEY: Must match pack.py exactly
+    async function bootVault() {
+        const status = document.getElementById('status-text');
+        // The Master Key used in pack.py
         const KEY = [0x57, 0x6F, 0x72, 0x6B, 0x73, 0x68, 0x6F, 0x70, 0x32, 0x30, 0x32, 0x36, 0x21, 0x40, 0x23, 0x24];
-        const decoder = new TextDecoder("utf-8");
 
         try {
-            label.innerText = "ACCESSING CLOUD DATA...";
+            status.innerText = "ACCESSING VAULT...";
+            const res = await fetch('core.data');
+            const buf = await res.arrayBuffer();
+            const view = new DataView(buf);
             
-            // 1. Fetch the Hex-Encoded Blob
-            const response = await fetch('core.data');
-            const hex = await response.text();
-            
-            // 2. Convert Hex string back to a Binary Array
-            const binLen = hex.length / 2;
-            const buffer = new Uint8Array(binLen);
-            for (let i = 0; i < binLen; i++) {
-                buffer[i] = parseInt(hex.substr(i * 2, 2), 16);
-            }
+            let offset = 0;
+            let jsSource = "";
+            let cssSource = "";
 
-            const view = new DataView(buffer.buffer);
-            let ptr = 0;
-            
-            // 3. Extract the SALT (The first byte)
-            const SALT = buffer[ptr++];
-            
-            let combinedJS = "";
-            let masterCSS = "";
+            while (offset < buf.byteLength) {
+                // 1. Read Filename
+                const nameLen = view.getUint8(offset++);
+                const nameBytes = new Uint8Array(buf, offset, nameLen);
+                const name = new TextDecoder().decode(nameBytes);
+                offset += nameLen;
 
-            // 4. The Binary Reassembly Loop
-            while (ptr < buffer.byteLength) {
+                // 2. Read Content Length
+                const dataLen = view.getUint32(offset);
+                offset += 4;
+
+                // 3. Decrypt into Byte Array (The fix for Stickers)
+                const encrypted = new Uint8Array(buf, offset, dataLen);
+                const decryptedBytes = new Uint8Array(dataLen);
+
+                for (let i = 0; i < dataLen; i++) {
+                    // Reverse the XOR math for each byte
+                    decryptedBytes[i] = encrypted[i] ^ KEY[i % KEY.length] ^ (i % 255);
+                }
                 
-                // A. Read Filename
-                const nLen = view.getUint8(ptr++);
-                const nBytes = buffer.subarray(ptr, ptr + nLen);
-                const name = decoder.decode(nBytes);
-                ptr += nLen;
+                // Convert the full byte buffer into a UTF-8 string at once
+                const decryptedText = new TextDecoder("utf-8").decode(decryptedBytes);
+                offset += dataLen;
 
-                // B. Read Content Size
-                const dLen = view.getUint32(ptr);
-                ptr += 4;
-
-                // C. DECRYPTION (INDIVIDUAL BYTE INTEGRITY)
-                const encrypted = buffer.subarray(ptr, ptr + dLen);
-                const decrypted = new Uint8Array(dLen);
-
-                for (let j = 0; j < dLen; j++) {
-                    // Reverse the math: encryptedByte ^ keyByte ^ salt
-                    decrypted[j] = encrypted[j] ^ KEY[j % KEY.length] ^ SALT;
-                }
-
-                /**
-                 * BLOB VIRTUALIZATION (THE STICKER FIX)
-                 * We use TextDecoder on the isolated byte array to prevent 
-                 * any string-mangling of the Emojis.
-                 */
-                const text = decoder.decode(decrypted);
-                ptr += dLen;
-
+                // 4. Group by type
                 if (name.endsWith('.css')) {
-                    masterCSS += text;
+                    cssSource += decryptedText;
                 } else {
-                    combinedJS += "\n/* " + name + " */\n" + text;
+                    jsSource += "\n" + decryptedText;
                 }
-                console.log("[VIRTUAL] Mounted: " + name);
             }
 
-            label.innerText = "STARTING DATABASE ENGINE...";
+            status.innerText = "STARTING ENGINE...";
 
             // 5. Inject Styles
-            const style = document.createElement('style');
-            style.textContent = masterCSS;
-            document.head.appendChild(style);
+            const styleElement = document.createElement('style');
+            styleElement.textContent = cssSource;
+            document.head.appendChild(styleElement);
 
-            // 6. Transpile React and Execute as a Virtual Memory Script
-            // This ensures Babel treats the stickers as part of a real JS file.
-            const result = Babel.transform(combinedJS, { presets: ['react'] }).code;
-            
-            // Turn the code into a RAM-Blob
-            const blob = new Blob([result], { type: 'text/javascript' });
-            const blobURL = URL.createObjectURL(blob);
-            
-            // Load the script as a virtual external source
-            const script = document.createElement('script');
-            script.src = blobURL;
-            document.body.appendChild(script);
+            // 6. Transpile React and Execute Logic
+            const finalExecutable = Babel.transform(jsSource, { presets: ['react'] }).code;
+            const scriptElement = document.createElement('script');
+            scriptElement.text = finalExecutable;
+            document.body.appendChild(scriptElement);
 
-        } catch (e) {
-            label.innerText = "VAULT AUTHENTICATION FAILED";
-            label.style.color = "red";
+        } catch (error) {
+            status.innerText = "SYSTEM ERROR: VAULT FAILED";
+            status.style.color = "#ef4444";
             console.error(error);
         }
     }
 
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
-    setTimeout(startSystem, 800);
+    // Register PWA for Offline support
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./sw.js');
+    }
+    
+    // Start boot sequence
+    setTimeout(bootVault, 1000);
   </script>
-
-  <!-- 
-    ============================================================================
-    TECHNICAL PADDING (FORCE LINE COUNT TO 430+)
-    ============================================================================
-  -->
-  <!-- Line Buffer 01 --><!-- Line Buffer 02 --><!-- Line Buffer 03 -->
-  <!-- Line Buffer 04 --><!-- Line Buffer 05 --><!-- Line Buffer 06 -->
-  <!-- Line Buffer 07 --><!-- Line Buffer 08 --><!-- Line Buffer 09 -->
-  <!-- Line Buffer 10 --><!-- Line Buffer 11 --><!-- Line Buffer 12 -->
-  <!-- Line Buffer 13 --><!-- Line Buffer 14 --><!-- Line Buffer 15 -->
-  <!-- Line Buffer 16 --><!-- Line Buffer 17 --><!-- Line Buffer 18 -->
-  <!-- Line Buffer 19 --><!-- Line Buffer 20 --><!-- Line Buffer 21 -->
-  <!-- Line Buffer 22 --><!-- Line Buffer 23 --><!-- Line Buffer 24 -->
-  <!-- Line Buffer 25 --><!-- Line Buffer 26 --><!-- Line Buffer 27 -->
-  <!-- Line Buffer 28 --><!-- Line Buffer 29 --><!-- Line Buffer 30 -->
-  <!-- Line Buffer 31 --><!-- Line Buffer 32 --><!-- Line Buffer 33 -->
-  <!-- Line Buffer 34 --><!-- Line Buffer 35 --><!-- Line Buffer 36 -->
-  <!-- Line Buffer 37 --><!-- Line Buffer 38 --><!-- Line Buffer 39 -->
-  <!-- Line Buffer 40 --><!-- Line Buffer 41 --><!-- Line Buffer 42 -->
-  <!-- Line Buffer 43 --><!-- Line Buffer 44 --><!-- Line Buffer 45 -->
-  <!-- Line Buffer 46 --><!-- Line Buffer 47 --><!-- Line Buffer 48 -->
-  <!-- Line Buffer 49 --><!-- Line Buffer 50 --><!-- Line Buffer 51 -->
-  <!-- Line Buffer 52 --><!-- Line Buffer 53 --><!-- Line Buffer 54 -->
-  <!-- Line Buffer 55 --><!-- Line Buffer 56 --><!-- Line Buffer 57 -->
-  <!-- Line Buffer 58 --><!-- Line Buffer 59 --><!-- Line Buffer 60 -->
-  <!-- Line Buffer 61 --><!-- Line Buffer 62 --><!-- Line Buffer 63 -->
-  <!-- Line Buffer 64 --><!-- Line Buffer 65 --><!-- Line Buffer 66 -->
-  <!-- Line Buffer 67 --><!-- Line Buffer 68 --><!-- Line Buffer 69 -->
-  <!-- Line Buffer 70 --><!-- Line Buffer 71 --><!-- Line Buffer 72 -->
-  <!-- Line Buffer 73 --><!-- Line Buffer 74 --><!-- Line Buffer 75 -->
-  <!-- Line Buffer 76 --><!-- Line Buffer 77 --><!-- Line Buffer 78 -->
-  <!-- Line Buffer 79 --><!-- Line Buffer 80 --><!-- Line Buffer 81 -->
-  <!-- Line Buffer 82 --><!-- Line Buffer 83 --><!-- Line Buffer 84 -->
-  <!-- Line Buffer 85 --><!-- Line Buffer 86 --><!-- Line Buffer 87 -->
-  <!-- Line Buffer 88 --><!-- Line Buffer 89 --><!-- Line Buffer 90 -->
-  <!-- Line Buffer 91 --><!-- Line Buffer 92 --><!-- Line Buffer 93 -->
-  <!-- Line Buffer 94 --><!-- Line Buffer 95 --><!-- Line Buffer 96 -->
-  <!-- Line Buffer 97 --><!-- Line Buffer 98 --><!-- Line Buffer 99 -->
-  <!-- Line Buffer 100 --><!-- Line Buffer 101 --><!-- Line Buffer 102 -->
 </body>
 </html>
