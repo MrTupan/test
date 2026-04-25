@@ -6,7 +6,7 @@
   <title>Workshop Pro</title>
 
   <!-- ============================================================================ -->
-  <!-- STEP 1: PWA & MOBILE APP CONFIGURATION (HIDES SAFARI UI) -->
+  <!-- SECTION 1: PWA & MOBILE OPTIMIZATION -->
   <!-- ============================================================================ -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0f172a">
@@ -15,7 +15,7 @@
   <link rel="apple-touch-icon" href="logo.png">
 
   <!-- ============================================================================ -->
-  <!-- STEP 2: LOAD EXTERNAL CLOUD LIBRARIES -->
+  <!-- SECTION 2: EXTERNAL CLOUD LIBRARIES -->
   <!-- ============================================================================ -->
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
@@ -25,139 +25,156 @@
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
   <!-- ============================================================================ -->
-  <!-- STEP 3: INITIALIZATION DESIGN (CSS) -->
+  <!-- SECTION 3: BOOT INTERFACE DESIGN -->
   <!-- ============================================================================ -->
   <style>
-    body { background: #0f172a; margin: 0; overflow: hidden; font-family: sans-serif; }
-    .mount-point { height: 100vh; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 25px; }
-    .spinner { width: 50px; height: 50px; border: 5px solid #1e293b; border-top-color: #f97316; border-radius: 50%; animation: spin 1s linear infinite; }
-    #status-text { color: #f97316; font-weight: bold; font-size: 11px; letter-spacing: 3px; text-transform: uppercase; text-shadow: 0 0 10px rgba(249,115,22,0.3); }
-    @keyframes spin { to { transform: rotate(360deg); } }
+    /**
+     * Minimal CSS to render the loading screen.
+     * The rest of the app's style.css is stored inside the encrypted vault.
+     */
+    body { background: #0f172a; margin: 0; overflow: hidden; font-family: system-ui, -apple-system, sans-serif; }
+    .vault-loader { height: 100vh; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 30px; }
+    .spinner { width: 45px; height: 45px; border: 4px solid #1e293b; border-top-color: #f97316; border-radius: 50%; animation: vault-spin 0.8s linear infinite; box-shadow: 0 0 15px rgba(249,115,22,0.1); }
+    #status-text { color: #f97316; font-weight: 900; font-size: 10px; letter-spacing: 4px; text-transform: uppercase; animation: pulse 2s infinite; }
+    @keyframes vault-spin { to { transform: rotate(360deg); } }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
   </style>
 </head>
 <body>
 
-  <!-- MASTER ROOT ELEMENT -->
+  <!-- MASTER MOUNT ELEMENT -->
   <div id="root">
-     <div class="mount-point">
+     <div class="vault-loader">
         <div class="spinner"></div>
-        <div id="status-text">INITIALIZING VAULT...</div>
+        <div id="status-text">DECRYPTING VAULT...</div>
      </div>
   </div>
 
+  <!-- ============================================================================ -->
+  <!-- SECTION 4: ATOMIC DECRYPTION ENGINE v10.0 -->
+  <!-- ============================================================================ -->
   <script>
     /**
-     * ============================================================================
-     * MASTER BINARY BOOTLOADER v9.5 - EMOJI RECOVERY EDITION
-     * ============================================================================
-     * logic:
-     * 1. Fetches the binary 'core.data' file from the server.
-     * 2. Reassemble files in RAM based on the proprietary header.
-     * 3. Reverse the Fixed-Key XOR math to recover raw bytes.
-     * 4. Use TextDecoder('utf-8') to handle multibyte characters (Emojis).
-     * 5. Compile React (Babel) and inject directly into the execution context.
-     * ============================================================================
+     * bootWorkshopSystem
+     * logic: 
+     * 1. Fetches the Base64-encoded core.data.
+     * 2. Decodes the transport layer back into a binary buffer.
+     * 3. Iterates through the byte stream and performs XOR restoration.
+     * 4. Uses TextDecoder to recover multi-byte Emojis (Stickers).
+     * 5. Injects the entire application state into the RAM execution environment.
      */
-    async function launchSystem() {
+    async function bootWorkshopSystem() {
         const label = document.getElementById('status-text');
         
-        // Master Secret Key (Must match pack.py)
+        // The Private 16-byte Master Key (Must match pack.py)
         const K = [0x57, 0x6F, 0x72, 0x6B, 0x73, 0x68, 0x6F, 0x70, 0x32, 0x30, 0x32, 0x36, 0x21, 0x40, 0x23, 0x24];
         
-        // Standard UTF-8 Decoder for Stickers
-        const utf8 = new TextDecoder("utf-8");
+        // High-fidelity UTF-8 Decoder for Sticker preservation
+        const decoder = new TextDecoder("utf-8");
 
         try {
-            label.innerText = "AUTHENTICATING...";
+            label.innerText = "ACCESSING SECURE DATA...";
             
-            // 1. Download encrypted blob
-            const res = await fetch('core.data');
-            if (!res.ok) throw new Error("VAULT_NOT_FOUND");
+            // 1. Fetch the Base64 file as text
+            const response = await fetch('core.data');
+            if (!response.ok) throw new Error("VAULT_OFFLINE");
             
-            const buf = await res.arrayBuffer();
-            const view = new DataView(buf);
-            let ptr = 0; // Buffer pointer
-            
-            let jsPayload = "";
-            let cssPayload = "";
+            const base64String = await response.text();
 
-            // 2. The Extraction Loop
-            while (ptr < buf.byteLength) {
+            // 2. Decode Base64 string back to a Binary Array
+            // logic: atob handles the transport decoding, then we map to bytes
+            const rawBinaryString = atob(base64String);
+            const binaryData = new Uint8Array(rawBinaryString.length);
+            for (let i = 0; i < rawBinaryString.length; i++) {
+                binaryData[i] = rawBinaryString.charCodeAt(i);
+            }
+
+            // Prepare memory buffers for reassembly
+            const dataView = new DataView(binaryData.buffer);
+            let ptr = 0;
+            let javascriptSource = "";
+            let cssSource = "";
+
+            // 3. The Reassembly Loop
+            while (ptr < binaryData.byteLength) {
                 
-                // A. Read Filename
-                const nLen = view.getUint8(ptr++);
-                const nBytes = new Uint8Array(buf, ptr, nLen);
-                const name = utf8.decode(nBytes);
+                // A. Parse Filename Header
+                const nLen = dataView.getUint8(ptr++);
+                const nBytes = binaryData.subarray(ptr, ptr + nLen);
+                const fileName = decoder.decode(nBytes);
                 ptr += nLen;
-                
-                // B. Read Content Length
-                const dLen = view.getUint32(ptr);
-                ptr += 4;
-                
-                // C. DECRYPTION ENGINE (FIXED FOR STICKERS)
-                const encrypted = new Uint8Array(buf, ptr, dLen);
-                const decrypted = new Uint8Array(dLen);
 
-                for (let i = 0; i < dLen; i++) {
+                // B. Parse Data Length Header
+                const dLen = dataView.getUint32(ptr);
+                ptr += 4;
+
+                // C. XOR DECRYPTION ENGINE (FIXED)
+                const encryptedSegment = binaryData.subarray(ptr, ptr + dLen);
+                const decryptedBytes = new Uint8Array(dLen);
+
+                for (let j = 0; j < dLen; j++) {
                     /**
-                     * logic: PURE XOR MATH
-                     * This mirrors the Python script exactly. 
-                     * No index offsets are used to ensure multibyte safety.
+                     * logic: REVERSE BIT-SHIFT
+                     * Uses the 16-byte rolling key to recover the original byte.
                      */
-                    decrypted[i] = encrypted[i] ^ K[i % K.length];
+                    decryptedBytes[j] = encryptedSegment[j] ^ K[j % K.length];
                 }
-                
-                // Convert recovered bytes to string
-                const contentText = utf8.decode(decrypted);
+
+                /**
+                 * STICKER RECONSTRUCTION
+                 * logic: TextDecoder ensures that multi-byte Emoji codes (like 0xF0 0x9F 0x92 0xB5)
+                 * are re-stitched into a single character before injection.
+                 */
+                const decryptedText = decoder.decode(decryptedBytes);
                 ptr += dLen;
 
-                // D. Memory Assignment
-                if (name.endsWith('.css')) {
-                    cssPayload += contentText;
+                // D. Memory Sorting
+                if (fileName.endsWith('.css')) {
+                    cssSource += decryptedText;
                 } else {
-                    jsPayload += "\n" + contentText;
+                    javascriptSource += "\n" + decryptedText;
                 }
                 
-                console.log("Vault Integrity Verified: " + name);
+                console.log("Vault Integrity Verified: " + fileName);
             }
 
             label.innerText = "STARTING ENGINE...";
 
-            // 3. Inject Decrypted Design
-            const styleElement = document.createElement('style');
-            styleElement.textContent = cssPayload;
-            document.head.appendChild(styleElement);
+            // 4. Inject Styles into the DOM
+            const styleTag = document.createElement('style');
+            styleTag.textContent = cssSource;
+            document.head.appendChild(styleTag);
 
-            // 4. Inject Decrypted Logic
-            // This step transpiles and executes from RAM. No source code is saved to disk.
-            const scriptOutput = Babel.transform(jsPayload, { presets: ['react'] }).code;
-            const engineScript = document.createElement('script');
-            engineScript.text = scriptOutput;
-            document.body.appendChild(engineScript);
+            // 5. Inject Application Logic via Babel Transpilation
+            // Note: This compiles the code directly from RAM, leaving no trace in the browser cache.
+            const compiledCode = Babel.transform(javascriptSource, { presets: ['react'] }).code;
+            const scriptTag = document.createElement('script');
+            scriptTag.text = compiledCode;
+            document.body.appendChild(scriptTag);
             
-            console.log("System Online. Environment: Standalone PWA.");
+            console.log("System Online. State: Encrypted Standalone.");
 
         } catch (err) {
-            label.innerText = "VAULT ERROR: CORRUPTION DETECTED";
+            label.innerText = "VAULT ERROR: AUTHENTICATION FAILED";
             label.style.color = "#ef4444";
-            console.error("Critical Failure:", err);
+            console.error("Critical System Failure:", err);
         }
     }
 
     /**
-     * SERVICE WORKER REGISTRATION (PWA)
-     * logic: Handles the local caching of 'core.data' for offline use.
+     * SERVICE WORKER (PWA)
+     * logic: Handles the offline caching of the encrypted vault.
      */
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
             navigator.serviceWorker.register('./sw.js').then(reg => {
-                console.log('Cache Protocol: Active');
+                console.log('Secure Cache: Active');
             });
         });
     }
     
-    // Boot the engine after a small buffer to ensure libraries are ready
-    setTimeout(launchSystem, 1000);
+    // Trigger boot sequence
+    setTimeout(bootWorkshopSystem, 800);
   </script>
 </body>
 </html>
