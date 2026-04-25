@@ -20,7 +20,7 @@
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-  <!-- INTERNAL CSS (For Loader only, main CSS is in the vault) -->
+  <!-- INTERNAL CSS (For Loader only) -->
   <style>
     body { background: #0f172a; margin: 0; overflow: hidden; }
     .spinner { width: 40px; height: 40px; border: 4px solid #334155; border-top-color: #f97316; border-radius: 50%; animation: spin 0.8s linear infinite; }
@@ -32,17 +32,41 @@
   <div id="root">
      <div style="height:100vh; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:20px; color:#f97316; font-family:sans-serif;">
         <div class="spinner"></div>
-        <div id="status-text" style="font-weight:bold; font-size:12px; letter-spacing:2px; text-transform:uppercase;">ACCESSING VAULT...</div>
+        <div id="status-text" style="font-weight:bold; font-size:12px; letter-spacing:2px; text-transform:uppercase;">CHECKING FOR UPDATES...</div>
      </div>
   </div>
 
   <script>
+    /**
+     * ============================================================================
+     * MASTER BINARY BOOTLOADER v9.0 - AUTO-UPDATE & CACHE BUSTING
+     * ============================================================================
+     * logic:
+     * 1. Appends a timestamp to the URL to bypass browser cache (?t=12345).
+     * 2. Uses 'cache: no-store' to force GitHub to send the real fresh file.
+     * 3. Automatically reloads the Service Worker when changes are detected.
+     * ============================================================================
+     */
     async function unlockVault() {
         const status = document.getElementById('status-text');
         const KEY = [0x57, 0x6F, 0x72, 0x6B, 0x73, 0x68, 0x6F, 0x70, 0x32, 0x30, 0x32, 0x36, 0x21, 0x40, 0x23, 0x24];
 
         try {
-            const res = await fetch('core.data');
+            status.innerText = "FETCHING FRESH VAULT...";
+
+            /**
+             * CACHE BUSTING LOGIC:
+             * We add Date.now() to the end of the filename. 
+             * Example: core.data?v=1714000000000
+             * This forces the browser to ignore any old saved versions.
+             */
+            const freshUrl = 'core.data?v=' + new Date().getTime();
+            
+            const res = await fetch(freshUrl, {
+                cache: 'no-store', // Tells browser: Do not save this in local cache
+                headers: { 'Cache-Control': 'no-cache' } // Tells GitHub: Send me the new one
+            });
+
             const buf = await res.arrayBuffer();
             const view = new DataView(buf);
             let offset = 0;
@@ -50,35 +74,35 @@
             let cssSource = "";
 
             while (offset < buf.byteLength) {
-                // Read Filename
                 const nameLen = view.getUint8(offset++);
                 const name = new TextDecoder().decode(new Uint8Array(buf, offset, nameLen));
                 offset += nameLen;
-
-                // Read Content
                 const dataLen = view.getUint32(offset);
                 offset += 4;
                 const encrypted = new Uint8Array(buf, offset, dataLen);
-                let decrypted = "";
+                let decrypted = new Uint8Array(dataLen);
+
                 for (let i = 0; i < dataLen; i++) {
-                    decrypted += String.fromCharCode(encrypted[i] ^ KEY[i % KEY.length] ^ (i % 255));
+                    // Logic: Rolling XOR matching the pack.py math
+                    decrypted[i] = (encrypted[i] ^ KEY[i % KEY.length] ^ (i % 255)) & 0xFF;
                 }
+                
+                const text = new TextDecoder("utf-8").decode(decrypted);
                 offset += dataLen;
 
-                // Sort content (Style vs Logic)
                 if (name.endsWith('.css')) {
-                    cssSource += decrypted;
+                    cssSource += text;
                 } else {
-                    jsSource += "\n" + decrypted;
+                    jsSource += "\n" + text;
                 }
             }
 
-            // 1. Inject Styles
+            // Apply Styles
             const styleTag = document.createElement('style');
             styleTag.textContent = cssSource;
             document.head.appendChild(styleTag);
 
-            // 2. Inject Logic (Babel Transpilation)
+            // Transpile and Execute
             const finalJS = Babel.transform(jsSource, { presets: ['react'] }).code;
             const scriptTag = document.createElement('script');
             scriptTag.text = finalJS;
@@ -87,11 +111,30 @@
         } catch (e) {
             status.innerText = "VAULT ERROR: UNAUTHORIZED";
             status.style.color = "#ef4444";
+            console.error(e);
         }
     }
 
+    /**
+     * SERVICE WORKER AUTO-UPDATE
+     * logic: This forces the phone to check for a new sw.js every time the app opens.
+     */
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('./sw.js');
+        navigator.serviceWorker.register('./sw.js').then(reg => {
+            // Check for updates on every load
+            reg.update();
+            
+            reg.onupdatefound = () => {
+                const installingWorker = reg.installing;
+                installingWorker.onstatechange = () => {
+                    if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                        // New version available! Force reload.
+                        console.log("New version detected. Reloading...");
+                        window.location.reload();
+                    }
+                };
+            };
+        });
     }
     
     setTimeout(unlockVault, 1000);
