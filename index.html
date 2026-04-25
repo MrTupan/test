@@ -25,65 +25,60 @@
   <div id="root">
      <div style="height:100vh; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:20px; color:#f97316; font-family:sans-serif;">
         <div class="spinner"></div>
-        <div id="status-text" style="font-weight:bold; font-size:12px; letter-spacing:2px; text-transform:uppercase;">INITIALIZING SYSTEM...</div>
+        <div id="status-text" style="font-weight:bold; font-size:11px; letter-spacing:2px; text-transform:uppercase;">UNLOCKING VAULT...</div>
      </div>
   </div>
   <script>
-    /**
-     * MASTER BINARY BOOTLOADER v8.2 - UTF-8 FIX
-     * logic: Decrypts core.data into a Byte-Buffer using 8-bit masking.
-     */
-    async function unlockVault() {
+    async function bootSystem() {
         const status = document.getElementById('status-text');
         const KEY = [0x57, 0x6F, 0x72, 0x6B, 0x73, 0x68, 0x6F, 0x70, 0x32, 0x30, 0x32, 0x36, 0x21, 0x40, 0x23, 0x24];
+        const decoder = new TextDecoder("utf-8");
 
         try {
-            status.innerText = "ACCESSING VAULT...";
             const res = await fetch('core.data');
             const buf = await res.arrayBuffer();
             const view = new DataView(buf);
-            let offset = 0, jsS = "", cssS = "";
+            let offset = 0, jsStr = "", cssStr = "";
 
             while (offset < buf.byteLength) {
-                const nL = view.getUint8(offset++);
-                const name = new TextDecoder().decode(new Uint8Array(buf, offset, nL));
-                offset += nL;
-                const dL = view.getUint32(offset);
+                const nLen = view.getUint8(offset++);
+                const nBytes = new Uint8Array(buf, offset, nLen);
+                const name = decoder.decode(nBytes);
+                offset += nLen;
+                
+                const dLen = view.getUint32(offset);
                 offset += 4;
                 
-                const encrypted = new Uint8Array(buf, offset, dL);
-                const decryptedBytes = new Uint8Array(dL);
+                const encrypted = new Uint8Array(buf, offset, dLen);
+                const decrypted = new Uint8Array(dLen);
 
-                for (let i = 0; i < dL; i++) {
-                    /**
-                     * logic: 8-BIT BITWISE XOR
-                     * The & 0xFF forces the result to stay a valid byte.
-                     */
-                    decryptedBytes[i] = (encrypted[i] ^ KEY[i % KEY.length] ^ (i % 255)) & 0xFF;
+                for (let i = 0; i < dLen; i++) {
+                    // Mirroring the v9.0 Python math perfectly
+                    decrypted[i] = (encrypted[i] ^ KEY[i % KEY.length]) & 0xFF;
                 }
                 
-                const text = new TextDecoder("utf-8").decode(decryptedBytes);
-                offset += dL;
+                const content = decoder.decode(decrypted);
+                offset += dLen;
 
-                if (name.endsWith('.css')) cssS += text; else jsS += "\n" + text;
+                if (name.endsWith('.css')) cssStr += content; else jsStr += "\n" + content;
             }
 
-            status.innerText = "VIRTUALIZING...";
             const style = document.createElement('style');
-            style.textContent = cssS;
+            style.textContent = cssStr;
             document.head.appendChild(style);
 
-            const output = Babel.transform(jsS, { presets: ['react'] }).code;
+            const output = Babel.transform(jsStr, { presets: ['react'] }).code;
             const script = document.createElement('script');
             script.text = output;
             document.body.appendChild(script);
+
         } catch (e) {
-            status.innerText = "VAULT ERROR: DATA CORRUPT";
-            status.style.color = "#ef4444";
+            status.innerText = "VAULT ERROR: AUTHENTICATION FAILED";
+            status.style.color = "red";
         }
     }
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
-    setTimeout(unlockVault, 1000);
+    setTimeout(bootSystem, 1000);
   </script>
 </body>
 </html>
