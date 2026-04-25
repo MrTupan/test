@@ -20,7 +20,7 @@
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-  <!-- INTERNAL CSS (For Loader only) -->
+  <!-- INTERNAL CSS (For Loader only, main CSS is in the vault) -->
   <style>
     body { background: #0f172a; margin: 0; overflow: hidden; }
     .spinner { width: 40px; height: 40px; border: 4px solid #334155; border-top-color: #f97316; border-radius: 50%; animation: spin 0.8s linear infinite; }
@@ -32,93 +32,69 @@
   <div id="root">
      <div style="height:100vh; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:20px; color:#f97316; font-family:sans-serif;">
         <div class="spinner"></div>
-        <div id="status-text" style="font-weight:bold; font-size:12px; letter-spacing:2px; text-transform:uppercase;">INITIALIZING SYSTEM...</div>
+        <div id="status-text" style="font-weight:bold; font-size:12px; letter-spacing:2px; text-transform:uppercase;">ACCESSING VAULT...</div>
      </div>
   </div>
 
   <script>
-    /**
-     * ============================================================================
-     * MASTER BINARY BOOTLOADER v8.5 - UTF-8 RECONSTRUCTION EDITION
-     * ============================================================================
-     * This version fixes the "Broken Stickers" issue by decrypting raw bytes
-     * and using TextDecoder to handle multi-byte Emoji characters correctly.
-     * ============================================================================
-     */
-    async function bootVault() {
+    async function unlockVault() {
         const status = document.getElementById('status-text');
-        // The Master Key used in pack.py
         const KEY = [0x57, 0x6F, 0x72, 0x6B, 0x73, 0x68, 0x6F, 0x70, 0x32, 0x30, 0x32, 0x36, 0x21, 0x40, 0x23, 0x24];
 
         try {
-            status.innerText = "ACCESSING VAULT...";
             const res = await fetch('core.data');
             const buf = await res.arrayBuffer();
             const view = new DataView(buf);
-            
             let offset = 0;
             let jsSource = "";
             let cssSource = "";
 
             while (offset < buf.byteLength) {
-                // 1. Read Filename
+                // Read Filename
                 const nameLen = view.getUint8(offset++);
-                const nameBytes = new Uint8Array(buf, offset, nameLen);
-                const name = new TextDecoder().decode(nameBytes);
+                const name = new TextDecoder().decode(new Uint8Array(buf, offset, nameLen));
                 offset += nameLen;
 
-                // 2. Read Content Length
+                // Read Content
                 const dataLen = view.getUint32(offset);
                 offset += 4;
-
-                // 3. Decrypt into Byte Array (The fix for Stickers)
                 const encrypted = new Uint8Array(buf, offset, dataLen);
-                const decryptedBytes = new Uint8Array(dataLen);
-
+                let decrypted = "";
                 for (let i = 0; i < dataLen; i++) {
-                    // Reverse the XOR math for each byte
-                    decryptedBytes[i] = encrypted[i] ^ KEY[i % KEY.length] ^ (i % 255);
+                    decrypted += String.fromCharCode(encrypted[i] ^ KEY[i % KEY.length] ^ (i % 255));
                 }
-                
-                // Convert the full byte buffer into a UTF-8 string at once
-                const decryptedText = new TextDecoder("utf-8").decode(decryptedBytes);
                 offset += dataLen;
 
-                // 4. Group by type
+                // Sort content (Style vs Logic)
                 if (name.endsWith('.css')) {
-                    cssSource += decryptedText;
+                    cssSource += decrypted;
                 } else {
-                    jsSource += "\n" + decryptedText;
+                    jsSource += "\n" + decrypted;
                 }
             }
 
-            status.innerText = "STARTING ENGINE...";
+            // 1. Inject Styles
+            const styleTag = document.createElement('style');
+            styleTag.textContent = cssSource;
+            document.head.appendChild(styleTag);
 
-            // 5. Inject Styles
-            const styleElement = document.createElement('style');
-            styleElement.textContent = cssSource;
-            document.head.appendChild(styleElement);
+            // 2. Inject Logic (Babel Transpilation)
+            const finalJS = Babel.transform(jsSource, { presets: ['react'] }).code;
+            const scriptTag = document.createElement('script');
+            scriptTag.text = finalJS;
+            document.body.appendChild(scriptTag);
 
-            // 6. Transpile React and Execute Logic
-            const finalExecutable = Babel.transform(jsSource, { presets: ['react'] }).code;
-            const scriptElement = document.createElement('script');
-            scriptElement.text = finalExecutable;
-            document.body.appendChild(scriptElement);
-
-        } catch (error) {
-            status.innerText = "SYSTEM ERROR: VAULT FAILED";
+        } catch (e) {
+            status.innerText = "VAULT ERROR: UNAUTHORIZED";
             status.style.color = "#ef4444";
-            console.error(error);
         }
     }
 
-    // Register PWA for Offline support
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('./sw.js');
     }
     
-    // Start boot sequence
-    setTimeout(bootVault, 1000);
+    setTimeout(unlockVault, 1000);
   </script>
 </body>
 </html>
